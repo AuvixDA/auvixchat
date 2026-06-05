@@ -593,6 +593,17 @@ window.addEventListener('load', () => {
         firebase.initializeApp(firebaseConfig);
         db = firebase.database();
         console.log("Firebase OK, db:", db);
+
+        // Восстановить сессию если есть
+        const saved = localStorage.getItem('auvix_user');
+        if (saved) {
+            try {
+                me = JSON.parse(saved);
+                enterApp();
+            } catch(e) {
+                localStorage.removeItem('auvix_user');
+            }
+        }
     } catch(e) {
         console.error("Firebase init error:", e);
     }
@@ -680,6 +691,8 @@ async function login() {
 
 // ── ОТКРЫТЬ ПРИЛОЖЕНИЕ ────────────────────────────────
 function enterApp() {
+    localStorage.setItem('auvix_user', JSON.stringify(me));
+
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app-screen').style.display  = 'block';
 
