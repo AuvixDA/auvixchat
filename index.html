@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auvix Messenger</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ОКНО РЕГИСТРАЦИИ -->
+    <div id="auth-screen" class="screen">
+        <div class="auth-box">
+            <h2>Регистрация в Auvix</h2>
+            <input type="text" id="reg-name" placeholder="Ваше имя" required>
+            <input type="text" id="reg-tag" placeholder="Ваш тег (например, @alex)" required>
+            <input type="password" id="reg-pass" placeholder="Пароль" required>
+            <button id="btn-register">Войти в мессенджер</button>
+        </div>
+    </div>
+
+    <!-- ОСНОВНОЙ ИНТЕРФЕЙС -->
+    <div id="app-screen" class="screen hidden">
+        
+        <!-- Боковая панель -->
+        <aside class="sidebar">
+            <div class="user-profile">
+                <span id="user-display-name">Имя</span>
+                <span id="user-display-tag" class="tag">@tag</span>
+            </div>
+            
+            <div class="search-box">
+                <input type="text" id="search-tag-input" placeholder="Поиск по @тегу...">
+                <button id="btn-find-chat">Найти</button>
+            </div>
+
+            <div class="chats-list" id="chats-container">
+                <!-- Сюда добавляются чаты -->
+            </div>
+        </aside>
+
+        <!-- Окно чата -->
+        <main class="chat-window">
+            <div class="chat-header" id="active-chat-header">
+                <h3>Выберите или найдите чат, чтобы начать общение</h3>
+            </div>
+            
+            <div class="chat-messages" id="messages-container">
+                <!-- Сюда приходят сообщения -->
+            </div>
+
+            <div class="chat-input-area" id="input-area" style="display: none;">
+                <input type="text" id="message-input" placeholder="Напишите сообщение...">
+                <button id="btn-send">Отправить</button>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- ПОДКЛЮЧЕНИЕ FIREBASE REALTIME DATABASE -->
+    <script type="module">
+        import { initializeApp } from "https://gstatic.com";
+        import { getDatabase, ref, push, onValue } from "https://gstatic.com";
+
+        // КОНФИГУРАЦИЯ С ВАШЕЙ ССЫЛКОЙ НА БАЗУ ДАННЫХ
+        const firebaseConfig = {
+            apiKey: "AIzaSyAtcfxKSo1beQC8-YBDBfkvWh66NzZBPH8",
+            authDomain: "://firebaseapp.com",
+            projectId: "auvix-messenger",
+            storageBucket: "auvix-messenger.firebasestorage.app",
+            messagingSenderId: "1000961865571",
+            appId: "1:1000961865571:web:506ed3a2fa5da4cb760556",
+            databaseURL: "https://firebaseio.com"
+        };
+
+        // Старт Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let currentUser = null;
+        let activeChatId = null;
+
+        // Элементы интерфейса
+        const authScreen = document.getElementById('auth-screen');
+        const appScreen = document.getElementById('app-screen');
+        const regName = document.getElementById('reg-name');
+        const regTag = document.getElementById('reg-tag');
+        const regPass = document.getElementById('reg-pass');
+        const btnRegister = document.getElementById('btn-register');
+
+        const userDisplayName = document.getElementById('user-display-name');
+        const userDisplayTag = document.getElementById('user-display-tag');
+        const searchTagInput = document.getElementById('search-tag-input');
+        const btnFindChat = document.getElementById('btn-find-chat');
+        const chatsContainer = document.getElementById('chats-container');
+        const activeChatHeader = document.getElementById('active-chat-header');
+        const messagesContainer = document.getElementById('messages-container');
+        const inputArea = document.getElementById('input-area');
+        const messageInput = document.getElementById('message-input');
+        const btnSend = document.getElementById('btn-send');
+
+        // ГАРАНТИРОВАННЫЙ ВХОД ПРИ НАЖАТИИ
+        btnRegister.addEventListener('click', () => {
+            let nameVal = regName.value.trim();
+            let tagVal = regTag.value.trim();
+            let passVal = regPass.value.trim();
+
+            if (!nameVal || !tagVal || !passVal) {
+                alert('Пожалуйста, заполните все поля формы!');
+                return;
+            }
+
+            if (!tagVal.startsWith('@')) {
+                tagVal = '@' + tagVal;
+            }
+
+            currentUser = {
+                name: nameVal,
+                tag: tagVal.toLowerCase(),
+                pass: passVal
+            };
+
+            // Мгновенно переключаем экран приложения
+            authScreen.classList.add('hidden');
+            appScreen.classList.remove('hidden');
+
+            // Обновляем данные профиля в левом углу
+            userDisplayName.textContent = currentUser.name;
+            userDisplayTag.textContent = currentUser.tag;
+
+            // Загружаем список чатов
+            loadChatsList();
+        });
+
+        // Поиск чата
+        btnFindChat.addEventListener('click', () => {
+            let targetTag = searchTagInput.value.trim().toLowerCase();
+            if (!targetTag) return;
+            if (!targetTag.startsWith('@')) targetTag = '@' + targetTag;
+
+            if (targetTag === currentUser.tag) {
+                alert('Нельзя открыть чат с самим собой!');
+                return;
+            }
+
+            const chatRoomId = [currentUser.tag, targetTag].sort().join('_');
+            openChat(chatRoomId, targetTag);
+            searchTagInput.value = '';
+        });
+
+        // Открытие чата
+        function openChat(chatId, partnerTag) {
+            activeChatId = chatId;
+            activeChatHeader.innerHTML = `<h3>Чат с <span>${partnerTag}</span></h3>`;
+            inputArea.style.display = 'flex';
+            messagesContainer.innerHTML = '';
+
+            const messagesRef = ref(db, 'messages/' + chatId);
+
+            onValue(messagesRef, (snapshot) => {
+                messagesContainer.innerHTML = '';
+                if (snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const msg = childSnapshot.val();
+                        const msgDiv = document.createElement('div');
+                        msgDiv.classList.add('message');
+                        
+                        if (msg.senderTag === currentUser.tag) {
+                            msgDiv.classList.add('my-message');
+                        } else {
+                            msgDiv.classList.add('other-message');
+                        }
+
+                        msgDiv.innerHTML = `
+                            <div class="msg-author">${msg.senderName}</div>
+                            <div class="msg-text">${escapeHtml(msg.text)}</div>
+                        `;
+                        messagesContainer.appendChild(msgDiv);
+                    });
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+            });
+
+            addChatToSidebar(chatId, partnerTag);
+        }
+
+        // Отправка сообщений
+        btnSend.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !activeChatId) return;
+
+            messageInput.value = '';
+
+            const messagesRef = ref(db, 'messages/' + activeChatId);
+            push(messagesRef, {
+                senderTag: currentUser.tag,
+                senderName: currentUser.name,
+                text: text,
+                timestamp: new Date().getTime()
+            });
+
+            const participants = activeChatId.split('_');
+            participants.forEach(tag => {
+                const safeTag = tag.replace('@', '');
+                const userChatsRef = ref(db, 'user_chats/' + safeTag + '/' + activeChatId);
+                push(userChatsRef, { partnerTag: participants.find(p => p !== tag) });
+            });
+        }
+
+        // Список чатов на боковой панели
+        function loadChatsList() {
+            const safeTag = currentUser.tag.replace('@', '');
+            const userChatsRef = ref(db, 'user_chats/' + safeTag);
+
+            onValue(userChatsRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const uniqueChats = new Set();
+                    snapshot.forEach((childSnapshot) => {
+                        uniqueChats.add(childSnapshot.key);
+                    });
+
+                    chatsContainer.innerHTML = '';
+                    uniqueChats.forEach(chatId => {
+                        const parts = chatId.split('_');
+                        const partnerTag = parts.find(p => p !== currentUser.tag);
+                        addChatToSidebar(chatId, partnerTag);
+                    });
+                }
+            });
+        }
+
+        function addChatToSidebar(chatId, partnerTag) {
+            if (document.getElementById(`side-${chatId}`)) return;
+
+            const chatItem = document.createElement('div');
+            chatItem.id = `side-${chatId}`;
+            chatItem.classList.add('chat-item');
+            if (chatId === activeChatId) chatItem.classList.add('active');
+            
+            chatItem.innerHTML = `
+                <div class="avatar">💬</div>
+                <div class="chat-info">
+                    <div class="chat-name">${partnerTag}</div>
+                </div>
+            `;
+
+            chatItem.addEventListener('click', () => {
+                document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
