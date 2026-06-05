@@ -4,247 +4,832 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auvix Messenger</title>
-    <link rel="stylesheet" href="style.css">
-    
-    <!-- ПОДКЛЮЧЕНИЕ FIREBASE ЧЕРЕЗ ПРОСТЫЕ СКРИПТЫ (БЕЗ MODULE СЛОЖНОСТЕЙ) -->
-    <script src="https://gstatic.com"></script>
-    <script src="https://gstatic.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDK (compat версия - работает без module) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg:        #0f1117;
+            --surface:   #181c26;
+            --surface2:  #1e2333;
+            --border:    #252a3a;
+            --accent:    #4f8fff;
+            --accent2:   #7c5cfc;
+            --text:      #e8eaf0;
+            --muted:     #6b7280;
+            --my-msg:    #4f8fff;
+            --other-msg: #1e2333;
+            --online:    #22c55e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* ── ЭКРАН ВХОДА ─────────────────────────────── */
+        #auth-screen {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background:
+                radial-gradient(ellipse 60% 60% at 20% 30%, rgba(79,143,255,.12) 0%, transparent 70%),
+                radial-gradient(ellipse 50% 50% at 80% 70%, rgba(124,92,252,.10) 0%, transparent 70%),
+                var(--bg);
+        }
+
+        .auth-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px 36px;
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-shadow: 0 24px 64px rgba(0,0,0,.5);
+        }
+
+        .auth-logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: -1px;
+            margin-bottom: 4px;
+        }
+
+        .auth-logo span { color: var(--accent2); }
+
+        .auth-tabs {
+            display: flex;
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 3px;
+            gap: 3px;
+            margin-bottom: 6px;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--muted);
+            transition: all .2s;
+            user-select: none;
+        }
+
+        .auth-tab.active {
+            background: var(--surface2);
+            color: var(--text);
+        }
+
+        .auth-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .auth-field label {
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 500;
+            letter-spacing: .5px;
+        }
+
+        input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 11px 14px;
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 15px;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            transition: border-color .2s;
+        }
+
+        input:focus { border-color: var(--accent); }
+        input::placeholder { color: var(--muted); }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            margin-top: 4px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn-primary:hover { background: #3a75e8; transform: translateY(-1px); }
+        .btn-primary:active { transform: translateY(0); }
+
+        .auth-error {
+            font-size: 13px;
+            color: #f87171;
+            text-align: center;
+            min-height: 18px;
+        }
+
+        /* ── ГЛАВНЫЙ ЭКРАН ───────────────────────────── */
+        #app-screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .app-layout {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ── САЙДБАР ──────────────────────────────────── */
+        .sidebar {
+            width: 300px;
+            min-width: 300px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 18px 16px 14px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .profile-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .profile-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .profile-info { flex: 1; min-width: 0; }
+
+        .profile-name {
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .profile-tag {
+            font-size: 12px;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .search-row input {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .btn-icon {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            font-family: 'Inter', sans-serif;
+            transition: background .2s;
+        }
+
+        .btn-icon:hover { background: #3a75e8; }
+
+        .chats-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .chats-list::-webkit-scrollbar { width: 4px; }
+        .chats-list::-webkit-scrollbar-track { background: transparent; }
+        .chats-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .chats-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .chat-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background .15s;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .chat-item:hover { background: var(--surface2); }
+        .chat-item.active { background: var(--surface2); border-left: 3px solid var(--accent); }
+
+        .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2a3a5a, #3a2a6a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .chat-meta { flex: 1; min-width: 0; }
+
+        .chat-tag {
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-preview {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ── ОКНО ЧАТА ────────────────────────────────── */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            min-width: 0;
+        }
+
+        .chat-header {
+            padding: 16px 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-header-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2a3a5a, #3a2a6a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .chat-header-info h3 {
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent);
+        }
+
+        .chat-header-info p {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .chat-empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            gap: 12px;
+        }
+
+        .chat-empty-icon { font-size: 48px; opacity: .4; }
+        .chat-empty-state p { font-size: 14px; }
+
+        .messages-wrap {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .messages-wrap::-webkit-scrollbar { width: 4px; }
+        .messages-wrap::-webkit-scrollbar-track { background: transparent; }
+        .messages-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 65%;
+        }
+
+        .message.mine { align-self: flex-end; align-items: flex-end; }
+        .message.theirs { align-self: flex-start; align-items: flex-start; }
+
+        .msg-author {
+            font-size: 11px;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 3px;
+            font-weight: 600;
+        }
+
+        .message.mine .msg-author { color: rgba(255,255,255,.5); }
+
+        .msg-bubble {
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        .message.mine .msg-bubble {
+            background: var(--accent);
+            color: #fff;
+            border-bottom-right-radius: 3px;
+        }
+
+        .message.theirs .msg-bubble {
+            background: var(--surface2);
+            color: var(--text);
+            border-bottom-left-radius: 3px;
+            border: 1px solid var(--border);
+        }
+
+        .msg-time {
+            font-size: 10px;
+            color: var(--muted);
+            margin-top: 3px;
+        }
+
+        .chat-input-row {
+            padding: 16px 20px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input-row input {
+            flex: 1;
+            padding: 10px 14px;
+            font-size: 14px;
+        }
+
+        .btn-send {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: background .2s;
+            white-space: nowrap;
+        }
+
+        .btn-send:hover { background: #3a75e8; }
+
+        .hidden { display: none !important; }
+
+        /* ── ТОСТ-УВЕДОМЛЕНИЕ ─────────────────────────── */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #1e2333;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: transform .3s ease;
+            z-index: 9999;
+            white-space: nowrap;
+        }
+
+        #toast.show { transform: translateX(-50%) translateY(0); }
+        #toast.error { border-color: #f87171; color: #f87171; }
+    </style>
 </head>
 <body>
 
-    <!-- ОКНО РЕГИСТРАЦИИ -->
-    <div id="auth-screen" class="screen">
-        <div class="auth-box">
-            <h2>Регистрация в Auvix</h2>
-            <input type="text" id="reg-name" placeholder="Ваше имя" required>
-            <input type="text" id="reg-tag" placeholder="Ваш тег (например, @alex)" required>
-            <input type="password" id="reg-pass" placeholder="Пароль" required>
-            <button id="btn-register">Войти в мессенджер</button>
+<!-- ── ЭКРАН ВХОДА ─────────────────────────────── -->
+<div id="auth-screen">
+    <div class="auth-box">
+        <div class="auth-logo">Auvix<span>.</span></div>
+
+        <div class="auth-tabs">
+            <div class="auth-tab active" id="tab-reg" onclick="switchTab('reg')">Регистрация</div>
+            <div class="auth-tab" id="tab-login" onclick="switchTab('login')">Войти</div>
         </div>
+
+        <!-- Регистрация -->
+        <div id="form-reg">
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <div class="auth-field">
+                    <label>ИМЯ</label>
+                    <input type="text" id="reg-name" placeholder="Как вас зовут?" autocomplete="off">
+                </div>
+                <div class="auth-field">
+                    <label>ТЕГ (уникальный)</label>
+                    <input type="text" id="reg-tag" placeholder="@username" autocomplete="off">
+                </div>
+                <div class="auth-field">
+                    <label>ПАРОЛЬ</label>
+                    <input type="password" id="reg-pass" placeholder="Минимум 4 символа">
+                </div>
+                <button class="btn-primary" onclick="register()">Создать аккаунт</button>
+            </div>
+        </div>
+
+        <!-- Вход -->
+        <div id="form-login" class="hidden">
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <div class="auth-field">
+                    <label>ТЕГ</label>
+                    <input type="text" id="login-tag" placeholder="@username" autocomplete="off">
+                </div>
+                <div class="auth-field">
+                    <label>ПАРОЛЬ</label>
+                    <input type="password" id="login-pass" placeholder="Ваш пароль">
+                </div>
+                <button class="btn-primary" onclick="login()">Войти</button>
+            </div>
+        </div>
+
+        <div class="auth-error" id="auth-error"></div>
     </div>
+</div>
 
-    <!-- ОСНОВНОЙ ИНТЕРФЕЙС -->
-    <div id="app-screen" class="screen hidden">
-        
-        <!-- Боковая панель -->
+<!-- ── ГЛАВНЫЙ ЭКРАН ───────────────────────────── -->
+<div id="app-screen">
+    <div class="app-layout">
+
+        <!-- Сайдбар -->
         <aside class="sidebar">
-            <div class="user-profile">
-                <span id="user-display-name">Имя</span>
-                <span id="user-display-tag" class="tag">@tag</span>
+            <div class="sidebar-header">
+                <div class="profile-row">
+                    <div class="profile-avatar" id="my-avatar">?</div>
+                    <div class="profile-info">
+                        <div class="profile-name" id="my-name">—</div>
+                        <div class="profile-tag" id="my-tag">—</div>
+                    </div>
+                </div>
+                <div class="search-row">
+                    <input type="text" id="search-input" placeholder="Найти @тег..." autocomplete="off"
+                        onkeypress="if(event.key==='Enter') findChat()">
+                    <button class="btn-icon" onclick="findChat()">Найти</button>
+                </div>
             </div>
-            
-            <div class="search-box">
-                <input type="text" id="search-tag-input" placeholder="Поиск по @тегу...">
-                <button id="btn-find-chat">Найти</button>
-            </div>
-
-            <div class="chats-list" id="chats-container">
-                <!-- Сюда добавляются чаты -->
+            <div class="chats-list" id="chats-list">
+                <div class="chats-empty">Нет чатов.<br>Найдите пользователя по @тегу</div>
             </div>
         </aside>
 
-        <!-- Окно чата -->
-        <main class="chat-window">
-            <div class="chat-header" id="active-chat-header">
-                <h3>Выберите или найдите чат, чтобы начать общение</h3>
-            </div>
-            
-            <div class="chat-messages" id="messages-container">
-                <!-- Сюда приходят сообщения -->
-            </div>
-
-            <div class="chat-input-area" id="input-area" style="display: none;">
-                <input type="text" id="message-input" placeholder="Напишите сообщение...">
-                <button id="btn-send">Отправить</button>
+        <!-- Область чата -->
+        <main class="chat-area" id="chat-area">
+            <div class="chat-empty-state">
+                <div class="chat-empty-icon">💬</div>
+                <p>Выберите чат или найдите пользователя</p>
             </div>
         </main>
 
     </div>
+</div>
 
-    <script>
-        // ВАШИ НАСТРОЙКИ FIREBASE С ССЫЛКОЙ НА НАСТРОЕННУЮ БД
-        const firebaseConfig = {
-            apiKey: "AIzaSyAtcfxKSo1beQC8-YBDBfkvWh66NzZBPH8",
-            authDomain: "://firebaseapp.com",
-            projectId: "auvix-messenger",
-            storageBucket: "auvix-messenger.firebasestorage.app",
-            messagingSenderId: "1000961865571",
-            appId: "1:1000961865571:web:506ed3a2fa5da4cb760556",
-            databaseURL: "https://firebaseio.com"
-        };
+<div id="toast"></div>
 
-        // Старт Firebase (классический синтаксис)
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+<script>
+// ════════════════════════════════════════════════════════
+//  ⚙️  ВСТАВЬТЕ СВОИ ДАННЫЕ ИЗ FIREBASE CONSOLE НИЖЕ
+//  console.firebase.google.com → ваш проект →
+//  Project Settings → Your apps → SDK setup → Config
+// ════════════════════════════════════════════════════════
+const firebaseConfig = {
+    apiKey:            "ВСТАВЬТЕ_apiKey",
+    authDomain:        "ВСТАВЬТЕ_authDomain",
+    projectId:         "ВСТАВЬТЕ_projectId",
+    storageBucket:     "ВСТАВЬТЕ_storageBucket",
+    messagingSenderId: "ВСТАВЬТЕ_messagingSenderId",
+    appId:             "ВСТАВЬТЕ_appId",
+    databaseURL:       "ВСТАВЬТЕ_databaseURL"
+    // databaseURL выглядит так:
+    // "https://ВАШ-ПРОЕКТ-default-rtdb.europe-west1.firebasedatabase.app"
+    // или "https://ВАШ-ПРОЕКТ-default-rtdb.firebaseio.com"
+};
+// ════════════════════════════════════════════════════════
 
-        let currentUser = null;
-        let activeChatId = null;
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-        // Элементы интерфейса
-        const authScreen = document.getElementById('auth-screen');
-        const appScreen = document.getElementById('app-screen');
-        const regName = document.getElementById('reg-name');
-        const regTag = document.getElementById('reg-tag');
-        const regPass = document.getElementById('reg-pass');
-        const btnRegister = document.getElementById('btn-register');
+// ── STATE ────────────────────────────────────────────
+let me = null;            // { name, tag, pass }
+let activeChatId = null;
+let msgListener = null;   // отписка от предыдущего чата
+const renderedChats = {}; // chatId → DOM-элемент
 
-        const userDisplayName = document.getElementById('user-display-name');
-        const userDisplayTag = document.getElementById('user-display-tag');
-        const searchTagInput = document.getElementById('search-tag-input');
-        const btnFindChat = document.getElementById('btn-find-chat');
-        const chatsContainer = document.getElementById('chats-container');
-        const activeChatHeader = document.getElementById('active-chat-header');
-        const messagesContainer = document.getElementById('messages-container');
-        const inputArea = document.getElementById('input-area');
-        const messageInput = document.getElementById('message-input');
-        const btnSend = document.getElementById('btn-send');
+// ── HELPERS ──────────────────────────────────────────
+function safeTag(tag) {
+    // Firebase не принимает точки, #, $, [, ] в ключах
+    return tag.replace('@','').replace(/[.#$\[\]]/g, '_').toLowerCase();
+}
 
-        // Вход в мессенджер
-        btnRegister.addEventListener('click', () => {
-            let nameVal = regName.value.trim();
-            let tagVal = regTag.value.trim();
-            let passVal = regPass.value.trim();
+function chatId(tagA, tagB) {
+    return [safeTag(tagA), safeTag(tagB)].sort().join('__');
+}
 
-            if (!nameVal || !tagVal || !passVal) {
-                alert('Пожалуйста, заполните все поля формы!');
-                return;
-            }
+function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
-            if (!tagVal.startsWith('@')) {
-                tagVal = '@' + tagVal;
-            }
+function fmtTime(ts) {
+    const d = new Date(ts);
+    return d.getHours().toString().padStart(2,'0') + ':' +
+           d.getMinutes().toString().padStart(2,'0');
+}
 
-            currentUser = {
-                name: nameVal,
-                tag: tagVal.toLowerCase(),
-                pass: passVal
-            };
+function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'show' + (isError ? ' error' : '');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.className = '', 2800);
+}
 
-            // Мгновенно переключаем экран приложения
-            authScreen.classList.add('hidden');
-            appScreen.classList.remove('hidden');
+function setError(msg) {
+    document.getElementById('auth-error').textContent = msg;
+}
 
-            // Обновляем данные профиля в левом углу
-            userDisplayName.textContent = currentUser.name;
-            userDisplayTag.textContent = currentUser.tag;
+// ── ВКЛАДКИ АВТОРИЗАЦИИ ───────────────────────────────
+function switchTab(tab) {
+    document.getElementById('form-reg').classList.toggle('hidden', tab !== 'reg');
+    document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
+    document.getElementById('tab-reg').classList.toggle('active', tab === 'reg');
+    document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+    setError('');
+}
 
-            // Загружаем список чатов
-            loadChatsList();
+// ── РЕГИСТРАЦИЯ ───────────────────────────────────────
+async function register() {
+    const name = document.getElementById('reg-name').value.trim();
+    let   tag  = document.getElementById('reg-tag').value.trim().toLowerCase();
+    const pass = document.getElementById('reg-pass').value;
+
+    if (!name || !tag || !pass) return setError('Заполните все поля');
+    if (pass.length < 4)        return setError('Пароль минимум 4 символа');
+    if (!tag.startsWith('@')) tag = '@' + tag;
+    if (!/^@[a-z0-9_]+$/.test(tag)) return setError('Тег: только латиница, цифры, _');
+
+    const key = safeTag(tag);
+    const snap = await db.ref('users/' + key).get();
+
+    if (snap.exists()) return setError('Этот тег уже занят');
+
+    await db.ref('users/' + key).set({ name, tag, pass });
+    me = { name, tag, pass };
+    enterApp();
+}
+
+// ── ВХОД ─────────────────────────────────────────────
+async function login() {
+    let   tag  = document.getElementById('login-tag').value.trim().toLowerCase();
+    const pass = document.getElementById('login-pass').value;
+
+    if (!tag || !pass) return setError('Введите тег и пароль');
+    if (!tag.startsWith('@')) tag = '@' + tag;
+
+    const key  = safeTag(tag);
+    const snap = await db.ref('users/' + key).get();
+
+    if (!snap.exists())            return setError('Пользователь не найден');
+    if (snap.val().pass !== pass)  return setError('Неверный пароль');
+
+    me = snap.val();
+    enterApp();
+}
+
+// ── ОТКРЫТЬ ПРИЛОЖЕНИЕ ────────────────────────────────
+function enterApp() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display  = 'block';
+
+    document.getElementById('my-name').textContent   = me.name;
+    document.getElementById('my-tag').textContent    = me.tag;
+    document.getElementById('my-avatar').textContent = me.name[0].toUpperCase();
+
+    loadMyChats();
+}
+
+// ── ЗАГРУЗИТЬ МОИ ЧАТЫ ───────────────────────────────
+function loadMyChats() {
+    const key = safeTag(me.tag);
+    db.ref('user_chats/' + key).on('value', snap => {
+        if (!snap.exists()) return;
+        snap.forEach(child => {
+            const cid        = child.key;
+            const partnerTag = child.val().partnerTag;
+            if (!renderedChats[cid]) addChatToSidebar(cid, partnerTag);
         });
+    });
+}
 
-        // Поиск чата
-        btnFindChat.addEventListener('click', () => {
-            let targetTag = searchTagInput.value.trim().toLowerCase();
-            if (!targetTag) return;
-            if (!targetTag.startsWith('@')) targetTag = '@' + targetTag;
+// ── ПОИСК СОБЕСЕДНИКА ─────────────────────────────────
+async function findChat() {
+    let tag = document.getElementById('search-input').value.trim().toLowerCase();
+    if (!tag) return;
+    if (!tag.startsWith('@')) tag = '@' + tag;
 
-            if (targetTag === currentUser.tag) {
-                alert('Нельзя открыть чат с самим собой!');
-                return;
-            }
+    if (tag === me.tag) return showToast('Нельзя открыть чат с собой', true);
 
-            const chatRoomId = [currentUser.tag, targetTag].sort().join('_');
-            openChat(chatRoomId, targetTag);
-            searchTagInput.value = '';
+    const key  = safeTag(tag);
+    const snap = await db.ref('users/' + key).get();
+
+    if (!snap.exists()) return showToast('Пользователь ' + tag + ' не найден', true);
+
+    document.getElementById('search-input').value = '';
+    const cid = chatId(me.tag, tag);
+    addChatToSidebar(cid, tag);
+    openChat(cid, tag);
+}
+
+// ── ДОБАВИТЬ ЧАТ В САЙДБАР ───────────────────────────
+function addChatToSidebar(cid, partnerTag) {
+    if (renderedChats[cid]) return;
+
+    // Убрать заглушку
+    const empty = document.querySelector('.chats-empty');
+    if (empty) empty.remove();
+
+    const item = document.createElement('div');
+    item.className = 'chat-item';
+    item.id = 'side-' + cid;
+    item.innerHTML = `
+        <div class="chat-avatar">💬</div>
+        <div class="chat-meta">
+            <div class="chat-tag">${escapeHtml(partnerTag)}</div>
+            <div class="chat-preview" id="preview-${cid}">Нет сообщений</div>
+        </div>
+    `;
+    item.addEventListener('click', () => openChat(cid, partnerTag));
+    document.getElementById('chats-list').appendChild(item);
+    renderedChats[cid] = item;
+
+    // Слушаем последнее сообщение для превью
+    db.ref('messages/' + cid).limitToLast(1).on('value', snap => {
+        const el = document.getElementById('preview-' + cid);
+        if (!el || !snap.exists()) return;
+        snap.forEach(c => {
+            const m = c.val();
+            el.textContent = (m.senderTag === me.tag ? 'Вы: ' : '') + m.text;
         });
+    });
+}
 
-        // Открытие чата и загрузка сообщений
-        function openChat(chatId, partnerTag) {
-            activeChatId = chatId;
-            activeChatHeader.innerHTML = `<h3>Чат с <span>${partnerTag}</span></h3>`;
-            inputArea.style.display = 'flex';
-            messagesContainer.innerHTML = '';
+// ── ОТКРЫТЬ ЧАТ ──────────────────────────────────────
+function openChat(cid, partnerTag) {
+    // Убрать активный класс
+    document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+    if (renderedChats[cid]) renderedChats[cid].classList.add('active');
 
-            const messagesRef = db.ref('messages/' + chatId);
+    // Отписаться от старого слушателя
+    if (msgListener) {
+        db.ref('messages/' + activeChatId).off('value', msgListener);
+        msgListener = null;
+    }
 
-            // Слушаем новые сообщения в реальном времени
-            messagesRef.on('value', (snapshot) => {
-                messagesContainer.innerHTML = '';
-                if (snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        const msg = childSnapshot.val();
-                        const msgDiv = document.createElement('div');
-                        msgDiv.classList.add('message');
-                        
-                        if (msg.senderTag === currentUser.tag) {
-                            msgDiv.classList.add('my-message');
-                        } else {
-                            msgDiv.classList.add('other-message');
-                        }
+    activeChatId = cid;
 
-                        msgDiv.innerHTML = `
-                            <div class="msg-author">${msg.senderName}</div>
-                            <div class="msg-text">${escapeHtml(msg.text)}</div>
-                        `;
-                        messagesContainer.appendChild(msgDiv);
-                    });
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                }
+    // Собрать разметку чата
+    const area = document.getElementById('chat-area');
+    area.innerHTML = `
+        <div class="chat-header">
+            <div class="chat-header-avatar">💬</div>
+            <div class="chat-header-info">
+                <h3>${escapeHtml(partnerTag)}</h3>
+                <p>Личные сообщения</p>
+            </div>
+        </div>
+        <div class="messages-wrap" id="messages-wrap"></div>
+        <div class="chat-input-row">
+            <input type="text" id="msg-input" placeholder="Написать сообщение..."
+                onkeypress="if(event.key==='Enter') sendMsg()">
+            <button class="btn-send" onclick="sendMsg()">Отправить</button>
+        </div>
+    `;
+
+    // Слушаем сообщения в реальном времени
+    const ref = db.ref('messages/' + cid);
+    msgListener = ref.on('value', snap => {
+        const wrap = document.getElementById('messages-wrap');
+        if (!wrap) return;
+        wrap.innerHTML = '';
+
+        if (snap.exists()) {
+            snap.forEach(child => {
+                const m   = child.val();
+                const mine = m.senderTag === me.tag;
+                const div  = document.createElement('div');
+                div.className = 'message ' + (mine ? 'mine' : 'theirs');
+                div.innerHTML = `
+                    <div class="msg-author">${escapeHtml(m.senderName)}</div>
+                    <div class="msg-bubble">${escapeHtml(m.text)}</div>
+                    <div class="msg-time">${fmtTime(m.ts)}</div>
+                `;
+                wrap.appendChild(div);
             });
-
-            addChatToSidebar(chatId, partnerTag);
         }
 
-        // Отправка сообщений
-        btnSend.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
+        wrap.scrollTop = wrap.scrollHeight;
+    });
 
-        function sendMessage() {
-            const text = messageInput.value.trim();
-            if (!text || !activeChatId) return;
+    // Записываем чат в user_chats для обоих
+    const myKey      = safeTag(me.tag);
+    const partnerKey = safeTag(partnerTag);
+    db.ref('user_chats/' + myKey      + '/' + cid).set({ partnerTag });
+    db.ref('user_chats/' + partnerKey + '/' + cid).set({ partnerTag: me.tag });
+}
 
-            messageInput.value = '';
+// ── ОТПРАВИТЬ СООБЩЕНИЕ ───────────────────────────────
+function sendMsg() {
+    const input = document.getElementById('msg-input');
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text || !activeChatId) return;
 
-            const messagesRef = db.ref('messages/' + activeChatId);
-            messagesRef.push({
-                senderTag: currentUser.tag,
-                senderName: currentUser.name,
-                text: text,
-                timestamp: new Date().getTime()
-            });
-
-            // Записываем информацию о существовании чата для обоих участников
-            const participants = activeChatId.split('_');
-            participants.forEach(tag => {
-                const safeTag = tag.replace('@', '');
-                const userChatsRef = db.ref('user_chats/' + safeTag + '/' + activeChatId);
-                userChatsRef.set({ partnerTag: participants.find(p => p !== tag) });
-            });
-        }
-
-        // Список активных чатов на боковой панели
-        function loadChatsList() {
-            const safeTag = currentUser.tag.replace('@', '');
-            const userChatsRef = db.ref('user_chats/' + safeTag);
-
-            userChatsRef.on('value', (snapshot) => {
-                chatsContainer.innerHTML = '';
-                if (snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        const chatId = childSnapshot.key;
-                        const parts = chatId.split('_');
-                        const partnerTag = parts.find(p => p !== currentUser.tag);
-                        addChatToSidebar(chatId, partnerTag);
-                    });
-                }
-            });
-        }
-
-        function addChatToSidebar(chatId, partnerTag) {
-            if (document.getElementById(`side-${chatId}`)) return;
-
-            const chatItem = document.createElement('div');
-            chatItem.id = `side-${chatId}`;
-            chatItem.classList.add('chat-item');
-            if (chatId === activeChatId) chatItem.classList.add('active');
-            
-            chatItem.innerHTML = `
-                <div class="avatar">💬</div>
-                <div class="chat-info">
-                    <div class="chat-name">${partnerTag}</div>
-                </div>
-            `;
-
-            chatItem.addEventListener('click', () => {
+    input.value = '';
+    db.ref('messages/' + activeChatId).push({
+        senderTag:  me.tag,
+        senderName: me.name,
+        text,
+        ts: Date.now()
+    });
+}
+</script>
+</body>
+</html>
