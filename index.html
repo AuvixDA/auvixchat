@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auvix Messenger</title>
     <link rel="stylesheet" href="style.css">
+    
+    <!-- ПОДКЛЮЧЕНИЕ FIREBASE ЧЕРЕЗ ПРОСТЫЕ СКРИПТЫ (БЕЗ MODULE СЛОЖНОСТЕЙ) -->
+    <script src="https://gstatic.com"></script>
+    <script src="https://gstatic.com"></script>
 </head>
 <body>
 
@@ -57,12 +61,8 @@
 
     </div>
 
-    <!-- ПОДКЛЮЧЕНИЕ FIREBASE REALTIME DATABASE -->
-    <script type="module">
-        import { initializeApp } from "https://gstatic.com";
-        import { getDatabase, ref, push, onValue } from "https://gstatic.com";
-
-        // КОНФИГУРАЦИЯ С ВАШЕЙ ССЫЛКОЙ НА БАЗУ ДАННЫХ
+    <script>
+        // ВАШИ НАСТРОЙКИ FIREBASE С ССЫЛКОЙ НА НАСТРОЕННУЮ БД
         const firebaseConfig = {
             apiKey: "AIzaSyAtcfxKSo1beQC8-YBDBfkvWh66NzZBPH8",
             authDomain: "://firebaseapp.com",
@@ -73,9 +73,9 @@
             databaseURL: "https://firebaseio.com"
         };
 
-        // Старт Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        // Старт Firebase (классический синтаксис)
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
         let currentUser = null;
         let activeChatId = null;
@@ -99,7 +99,7 @@
         const messageInput = document.getElementById('message-input');
         const btnSend = document.getElementById('btn-send');
 
-        // ГАРАНТИРОВАННЫЙ ВХОД ПРИ НАЖАТИИ
+        // Вход в мессенджер
         btnRegister.addEventListener('click', () => {
             let nameVal = regName.value.trim();
             let tagVal = regTag.value.trim();
@@ -148,16 +148,17 @@
             searchTagInput.value = '';
         });
 
-        // Открытие чата
+        // Открытие чата и загрузка сообщений
         function openChat(chatId, partnerTag) {
             activeChatId = chatId;
             activeChatHeader.innerHTML = `<h3>Чат с <span>${partnerTag}</span></h3>`;
             inputArea.style.display = 'flex';
             messagesContainer.innerHTML = '';
 
-            const messagesRef = ref(db, 'messages/' + chatId);
+            const messagesRef = db.ref('messages/' + chatId);
 
-            onValue(messagesRef, (snapshot) => {
+            // Слушаем новые сообщения в реальном времени
+            messagesRef.on('value', (snapshot) => {
                 messagesContainer.innerHTML = '';
                 if (snapshot.exists()) {
                     snapshot.forEach((childSnapshot) => {
@@ -196,36 +197,33 @@
 
             messageInput.value = '';
 
-            const messagesRef = ref(db, 'messages/' + activeChatId);
-            push(messagesRef, {
+            const messagesRef = db.ref('messages/' + activeChatId);
+            messagesRef.push({
                 senderTag: currentUser.tag,
                 senderName: currentUser.name,
                 text: text,
                 timestamp: new Date().getTime()
             });
 
+            // Записываем информацию о существовании чата для обоих участников
             const participants = activeChatId.split('_');
             participants.forEach(tag => {
                 const safeTag = tag.replace('@', '');
-                const userChatsRef = ref(db, 'user_chats/' + safeTag + '/' + activeChatId);
-                push(userChatsRef, { partnerTag: participants.find(p => p !== tag) });
+                const userChatsRef = db.ref('user_chats/' + safeTag + '/' + activeChatId);
+                userChatsRef.set({ partnerTag: participants.find(p => p !== tag) });
             });
         }
 
-        // Список чатов на боковой панели
+        // Список активных чатов на боковой панели
         function loadChatsList() {
             const safeTag = currentUser.tag.replace('@', '');
-            const userChatsRef = ref(db, 'user_chats/' + safeTag);
+            const userChatsRef = db.ref('user_chats/' + safeTag);
 
-            onValue(userChatsRef, (snapshot) => {
+            userChatsRef.on('value', (snapshot) => {
+                chatsContainer.innerHTML = '';
                 if (snapshot.exists()) {
-                    const uniqueChats = new Set();
                     snapshot.forEach((childSnapshot) => {
-                        uniqueChats.add(childSnapshot.key);
-                    });
-
-                    chatsContainer.innerHTML = '';
-                    uniqueChats.forEach(chatId => {
+                        const chatId = childSnapshot.key;
                         const parts = chatId.split('_');
                         const partnerTag = parts.find(p => p !== currentUser.tag);
                         addChatToSidebar(chatId, partnerTag);
@@ -250,4 +248,3 @@
             `;
 
             chatItem.addEventListener('click', () => {
-                document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
