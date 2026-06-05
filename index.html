@@ -572,27 +572,31 @@
 //  Project Settings → Your apps → SDK setup → Config
 // ════════════════════════════════════════════════════════
 const firebaseConfig = {
-    apiKey:            "ВСТАВЬТЕ_apiKey",
-    authDomain:        "ВСТАВЬТЕ_authDomain",
-    projectId:         "ВСТАВЬТЕ_projectId",
-    storageBucket:     "ВСТАВЬТЕ_storageBucket",
-    messagingSenderId: "ВСТАВЬТЕ_messagingSenderId",
-    appId:             "ВСТАВЬТЕ_appId",
-    databaseURL:       "ВСТАВЬТЕ_databaseURL"
-    // databaseURL выглядит так:
-    // "https://ВАШ-ПРОЕКТ-default-rtdb.europe-west1.firebasedatabase.app"
-    // или "https://ВАШ-ПРОЕКТ-default-rtdb.firebaseio.com"
+    apiKey:            "AIzaSyAtcfxKSo1beQC8-YBDBfkvWh66NzZBPH8",
+    authDomain:        "auvix-messenger.firebaseapp.com",
+    projectId:         "auvix-messenger",
+    storageBucket:     "auvix-messenger.firebasestorage.app",
+    messagingSenderId: "1000961865571",
+    appId:             "1:1000961865571:web:506ed3a2fa5da4cb760556",
+    databaseURL:       "https://auvix-messenger-default-rtdb.firebaseio.com"
 };
 // ════════════════════════════════════════════════════════
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// ── STATE ────────────────────────────────────────────
-let me = null;            // { name, tag, pass }
+let db = null;
+let me = null;
 let activeChatId = null;
-let msgListener = null;   // отписка от предыдущего чата
-const renderedChats = {}; // chatId → DOM-элемент
+let msgListener = null;
+const renderedChats = {};
+
+window.addEventListener('load', () => {
+    try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+        console.log("Firebase OK, db:", db);
+    } catch(e) {
+        console.error("Firebase init error:", e);
+    }
+});
 
 // ── HELPERS ──────────────────────────────────────────
 function safeTag(tag) {
