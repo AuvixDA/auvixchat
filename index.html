@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>AUVIX</title>
     <link rel="manifest" href="/auvixchat/manifest.json">
     <meta name="theme-color" content="#060608">
@@ -13,8 +13,7 @@
     <link rel="apple-touch-icon" href="/auvixchat/icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
     <style>
         :root {
             --bg:      #060608;
@@ -677,6 +676,7 @@ const mob = ()=>window.innerWidth<=600;
 
 window.addEventListener('load',()=>{
     try {
+        if(typeof firebase==='undefined'){ console.error('Firebase SDK not loaded'); return; }
         firebase.initializeApp(CFG);
         db = firebase.database();
         const s = localStorage.getItem('auvix_me');
@@ -896,6 +896,8 @@ function openLb(url){ document.getElementById('lb-img').src=url; document.getEle
 function closeLb(){ document.getElementById('lightbox').classList.remove('open'); document.getElementById('lb-img').src=''; }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLb(); });
 </script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
 if('serviceWorker' in navigator){
     window.addEventListener('load',()=>{
